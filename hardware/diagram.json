@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "author": "Team Straw Hat",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo1",
+      "top": -180,
+      "left": 250,
+      "attrs": {
+        "hornColor": "#ff5252"
+      }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo2",
+      "top": -115,
+      "left": 250,
+      "attrs": {
+        "hornColor": "#ff9800"
+      }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo3",
+      "top": -50,
+      "left": 250,
+      "attrs": {
+        "hornColor": "#ffeb3b"
+      }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo4",
+      "top": 15,
+      "left": 250,
+      "attrs": {
+        "hornColor": "#4caf50"
+      }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo5",
+      "top": 80,
+      "left": 250,
+      "attrs": {
+        "hornColor": "#2196f3"
+      }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo6",
+      "top": 145,
+      "left": 250,
+      "attrs": {
+        "hornColor": "#3f51b5"
+      }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo7",
+      "top": 210,
+      "left": 250,
+      "attrs": {
+        "hornColor": "#9c27b0"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "servo1:PWM",
+      "esp:D13",
+      "green",
+      []
+    ],
+    [
+      "servo2:PWM",
+      "esp:D12",
+      "green",
+      []
+    ],
+    [
+      "servo3:PWM",
+      "esp:D14",
+      "green",
+      []
+    ],
+    [
+      "servo4:PWM",
+      "esp:D27",
+      "green",
+      []
+    ],
+    [
+      "servo5:PWM",
+      "esp:D26",
+      "green",
+      []
+    ],
+    [
+      "servo6:PWM",
+      "esp:D25",
+      "green",
+      []
+    ],
+    [
+      "servo7:PWM",
+      "esp:D33",
+      "green",
+      []
+    ],
+    [
+      "servo1:V+",
+      "esp:5V",
+      "red",
+      []
+    ],
+    [
+      "servo2:V+",
+      "esp:5V",
+      "red",
+      []
+    ],
+    [
+      "servo3:V+",
+      "esp:5V",
+      "red",
+      []
+    ],
+    [
+      "servo4:V+",
+      "esp:5V",
+      "red",
+      []
+    ],
+    [
+      "servo5:V+",
+      "esp:5V",
+      "red",
+      []
+    ],
+    [
+      "servo6:V+",
+      "esp:5V",
+      "red",
+      []
+    ],
+    [
+      "servo7:V+",
+      "esp:5V",
+      "red",
+      []
+    ],
+    [
+      "servo1:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "servo2:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "servo3:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "servo4:GND",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "servo5:GND",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "servo6:GND",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "servo7:GND",
+      "esp:GND.3",
+      "black",
+      []
+    ]
+  ],
+  "dependencies": {}
+}
