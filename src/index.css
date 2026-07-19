@@ -1,0 +1,317 @@
+@import 'tailwindcss';
+
+/* Self-hosted — the console must render identically with no network. */
+@import '@fontsource/chakra-petch/500.css';
+@import '@fontsource/chakra-petch/600.css';
+@import '@fontsource/chakra-petch/700.css';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+/* ── Ground Control ──────────────────────────────────────────────────────────
+   A ground station for a machine you're not allowed to touch. Carbon black,
+   blueprint grid, hairline bezels. ONE dominant accent (signal amber, matched
+   to the arm's joint colour in the 3D scene) so the UI and the robot read as
+   one machine. Teal is telemetry. Crimson is reserved for the safety gate and
+   nothing else — when you see red, the validator refused something.
+   ────────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-void: #05070a;
+  --color-carbon: #0a0d13;
+  --color-panel: #0e131b;
+  --color-raised: #141b25;
+  --color-hairline: #1f2833;
+  --color-hairline-lit: #2c3947;
+
+  --color-ink: #e9eef5;
+  --color-muted: #7b8798;
+  --color-dim: #55606f;
+
+  --color-flare: #ffa519; /* dominant accent — matches the 3D joint yellow */
+  --color-flare-deep: #7a4c05;
+  --color-signal: #3fe0c8; /* telemetry */
+  --color-signal-deep: #0d4a44;
+  --color-alarm: #ff4257; /* the gate, and only the gate */
+  --color-alarm-deep: #5c1420;
+  --color-ok: #46d67f;
+
+  --font-display: 'Chakra Petch', sans-serif;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-void);
+  color: var(--color-ink);
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+canvas {
+  display: block;
+}
+
+/* ── Atmosphere ───────────────────────────────────────────────────────────── */
+
+/* Blueprint grid + vignette, painted behind everything. */
+.atmosphere::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-hairline) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-hairline) 55%, transparent) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 20%, transparent 75%);
+  opacity: 0.5;
+}
+
+/* Fine grain — kills the flat-digital look on big dark fields. Must sit ABOVE
+   the opaque content (canvas, panels) or it renders nothing at all. */
+.atmosphere::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  opacity: 0.028;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Instrument primitives ────────────────────────────────────────────────── */
+
+@layer components {
+  /* Panel bezel: hairline border + a lit top edge, like a milled faceplate. */
+  .panel {
+    position: relative;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-hairline);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--color-raised) 60%, transparent) 0%, transparent 42%),
+      var(--color-panel);
+    box-shadow:
+      0 1px 0 0 color-mix(in srgb, #fff 4%, transparent) inset,
+      0 10px 30px -18px #000;
+  }
+
+  /* Accented panel — used for the heaviest-weighted instrument (PIN, 20%). */
+  .panel-flare {
+    border-color: color-mix(in srgb, var(--color-flare) 28%, var(--color-hairline));
+    box-shadow:
+      0 1px 0 0 color-mix(in srgb, var(--color-flare) 14%, transparent) inset,
+      0 10px 34px -20px color-mix(in srgb, var(--color-flare) 45%, transparent);
+  }
+
+  .panel-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.6875rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  /* Numeric readouts: tabular, never reflow as digits change. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 0.25rem;
+    border: 1px solid var(--color-hairline);
+    padding: 0.0625rem 0.3125rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    line-height: 1rem;
+    color: var(--color-muted);
+  }
+
+  /* Recessed control well — inputs, keypads, the joystick disc. */
+  .well {
+    background: var(--color-void);
+    border: 1px solid var(--color-hairline);
+    box-shadow: 0 2px 8px -4px #000 inset;
+  }
+
+  .btn {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border-radius: 0.3125rem;
+    border: 1px solid var(--color-hairline);
+    background: var(--color-raised);
+    color: var(--color-ink);
+    transition:
+      background 120ms ease,
+      border-color 120ms ease,
+      transform 60ms ease;
+  }
+  .btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-raised) 70%, var(--color-hairline-lit));
+    border-color: var(--color-hairline-lit);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .btn-flare {
+    border-color: color-mix(in srgb, var(--color-flare) 45%, transparent);
+    background: color-mix(in srgb, var(--color-flare) 16%, var(--color-panel));
+    color: var(--color-flare);
+  }
+  .btn-flare:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-flare) 26%, var(--color-panel));
+    border-color: var(--color-flare);
+  }
+
+  .btn-alarm {
+    border-color: color-mix(in srgb, var(--color-alarm) 45%, transparent);
+    background: color-mix(in srgb, var(--color-alarm) 14%, var(--color-panel));
+    color: var(--color-alarm);
+  }
+  .btn-alarm:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-alarm) 24%, var(--color-panel));
+    border-color: var(--color-alarm);
+  }
+
+  /* Focus: a thin amber ring, never a fat browser outline. */
+  input:focus-visible,
+  button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--color-flare);
+  }
+}
+
+/* ── Motion ───────────────────────────────────────────────────────────────── */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Staggered instrument-rack power-on. */
+.rise {
+  animation: rise 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-140%);
+  }
+  to {
+    transform: translateX(420%);
+  }
+}
+.sweep {
+  animation: sweep 6s linear infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-ok) 55%, transparent);
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+.breathe {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+/* The gate flashing on a refusal — the one aggressive motion in the console. */
+@keyframes reject-flash {
+  0% {
+    background-color: color-mix(in srgb, var(--color-alarm) 32%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.reject-flash {
+  animation: reject-flash 900ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .sweep,
+  .breathe,
+  .reject-flash {
+    animation: none;
+  }
+}
+
+/* Instrument scrollbars — thin, unobtrusive. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hairline-lit) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-hairline-lit);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Range sliders as instrument travel bars. */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--color-hairline);
+  border-radius: 2px;
+}
+/* Rides on top of a travel bar that already draws the track. */
+input[type='range'].bare::-webkit-slider-runnable-track {
+  background: transparent;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 14px;
+  margin-top: -6px;
+  border-radius: 2px;
+  background: var(--color-flare);
+  box-shadow: 0 0 8px -1px color-mix(in srgb, var(--color-flare) 70%, transparent);
+}
+input[type='range']:disabled::-webkit-slider-thumb {
+  background: var(--color-dim);
+  box-shadow: none;
+}
