@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { env } from './env.js';
 import authRouter from './routes/auth.js';
+import eventsRouter from './routes/events.js';
 
 const app = express();
 
@@ -13,6 +14,14 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/events', eventsRouter);
+
+// Centralized error handler — keeps route handlers free of try/catch
+// boilerplate for unexpected (non-validation) failures.
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(err);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 app.listen(env.PORT, () => {
   console.log(`Dry Run server listening on http://localhost:${env.PORT}`);
