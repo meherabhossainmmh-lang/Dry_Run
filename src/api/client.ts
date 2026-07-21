@@ -1,8 +1,10 @@
 /**
- * Minimal fetch wrapper for the optional Dry Run backend (Feature 2: user
- * accounts). The app runs fully without this — if VITE_API_BASE_URL isn't
- * set, calls below throw and the UI that uses them (AuthPanel) simply
- * doesn't render.
+ * Minimal fetch wrapper for the optional Dry Run backend (Feature 1:
+ * persistent event log, Feature 2: user accounts). The app runs fully
+ * without this — if VITE_API_BASE_URL isn't set, the API calls below are
+ * no-ops and everything falls back to the original in-memory-only
+ * behaviour. Nothing here sits on a privileged path: it only mirrors what
+ * `useArmStore.log()` already recorded locally.
  */
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined;
@@ -19,6 +21,16 @@ export interface PublicUser {
 export interface AuthResponse {
   token: string;
   user: PublicUser;
+}
+
+export interface ApiEvent {
+  id: number;
+  source: string;
+  type?: string | null;
+  message: string;
+  level: 'info' | 'warn' | 'error';
+  createdAt: string;
+  userId: number | null;
 }
 
 class ApiError extends Error {
@@ -62,6 +74,19 @@ export const api = {
     }),
 
   me: (token: string) => request<{ user: PublicUser }>('/api/auth/me', {}, token),
+
+  logEvent: (
+    event: { source: string; type?: string; message: string; level: 'info' | 'warn' | 'error' },
+    token?: string | null,
+  ) =>
+    request<{ event: ApiEvent }>(
+      '/api/events',
+      { method: 'POST', body: JSON.stringify(event) },
+      token,
+    ),
+
+  history: (token: string, limit = 100) =>
+    request<{ events: ApiEvent[] }>(`/api/events?limit=${limit}`, {}, token),
 };
 
 export { ApiError };
