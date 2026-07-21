@@ -1,6 +1,13 @@
 // Dry Run backend — Prisma schema
 //
-// Feature 2 (accounts): registered operators.
+// Two tables, deliberately minimal, mirroring what the existing frontend
+// already models in-memory (see src/state/store.ts `ArmEvent`):
+//   - users: registered operators (Feature 2 — accounts/auth)
+//   - events: persisted command/validation log (Feature 1 — persistent event log)
+//
+// A `userId` on Event is nullable on purpose: guest operators still generate
+// events client-side, and we optionally persist those as anonymous rows so
+// the "one gate, one log" story holds even before someone logs in.
 
 generator client {
   provider = "prisma-client-js"
@@ -18,5 +25,22 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
 
+  events Event[]
+
   @@map("users")
+}
+
+model Event {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  source    String
+  type      String?
+  message   String
+  level     String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("events")
 }
