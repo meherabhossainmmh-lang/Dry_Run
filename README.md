@@ -240,9 +240,11 @@ The backend (accounts + persistent history) is entirely optional and off by defa
 
 ## Tech stack & attribution
 
-React 19 · Vite · TypeScript (strict) · Tailwind CSS · **three.js** (MIT) · **urdf-loader** by gkjohnson (MIT) · zustand · zod · Web Speech API · Groq API · Wokwi. Provided assets: `stylus_arm.urdf`, `key.config.json`.
+**Frontend:** React 19 · Vite · TypeScript (strict) · Tailwind CSS · **three.js** (MIT) · **urdf-loader** by gkjohnson (MIT) · zustand · zod · Web Speech API · Groq API · Wokwi. Provided assets: `stylus_arm.urdf`, `key.config.json`.
 
-All application code was written from scratch during the event (no pre-written code reuse, per the rulebook).
+**Backend (new):** Node.js · Express · TypeScript · PostgreSQL · Prisma ORM · `jsonwebtoken` · `bcrypt`.
+
+All application code was written from scratch (no pre-written code reuse, per the rulebook). The backend added this round follows the same principle.
 
 ---
 
@@ -250,10 +252,10 @@ All application code was written from scratch during the event (no pre-written c
 
 | Member | Lane |
 |---|---|
-| Arif Shekh | Architecture · kinematics core · IK · PIN runner · joystick · integration |
-| golammoula287 | Scaffold/render support · voice + LLM agent layer |
-| Anamika-Mallick | Manual-control lane |
-| Meherab (meherabmehu) | Voice layer · hardware |
+| Meherab (meherabhossainmmh-lang) — **team lead** | Overall architecture · frontend↔backend integration · event-sync wiring · README/docs · release |
+| oishesalma | Backend: accounts & authentication (`server/src/routes/auth.ts`, JWT/bcrypt) · `AuthPanel` |
+| akterjobaida57-debug | Backend: persistent event log (`server/src/routes/events.ts`, Prisma schema) · `HistoryPanel` |
+| _(4th member — joining soon)_ | Reserved: event-log filtering/pagination UI, once added to the repo |
 
 ---
 
@@ -261,4 +263,5 @@ All application code was written from scratch during the event (no pre-written c
 
 - **Singularity handling** — the vertical home pose is triply-singular; DLS damping keeps the solver honest instead of exploding, and the UI badges "near reach limit" truthfully rather than faking motion.
 - **One gate, many inputs** — the hardest and most valuable design choice was refusing to give any source (especially the LLM) a fast path around `validate()`.
-- **Next:** orientation-aware (full 6-DOF pose) IK targets, trajectory preview before execution, and closing the loop to the Wokwi firmware over serial.
+- **Keeping the backend additive** — the constraint we held ourselves to this round: no existing file's *behaviour* changes when the backend is absent. `eventSync.ts` observes the store from the outside rather than editing `log()`, and both new panels early-return to `null` when `VITE_API_BASE_URL` is unset.
+- **Next:** orientation-aware (full 6-DOF pose) IK targets, trajectory preview before execution, closing the loop to the Wokwi firmware over serial, pagination/filtering on saved history (planned for the 4th team member), and role-based access if multi-operator review becomes a requirement.
