@@ -2,9 +2,11 @@
 
 **Team Straw Hat · Techathon 2026 Final Round (IUT Robotics Society)**
 
-> 🔗 **Live demo:** https://techathon2026-straw-hat-final.vercel.app · 🎥 **Demo video:** _link on submission_
+> 🎥 **Demo video:** _link on submission_
 
-A 7-DOF stylus arm, simulated and driven entirely in the browser — **no backend, no hardware required**. Five different ways to command it (dashboard, on-screen joystick, keyboard, natural-language voice, and a fully autonomous PIN-typing routine) all flow through **one motion pipeline behind one safety gate**. Nothing gets a privileged path — the LLM agent is held to the exact same limit checks as a keyboard key press.
+A 7-DOF stylus arm, simulated and driven entirely in the browser — **no hardware required, and no backend required either** (the backend below is an optional add-on, not a dependency). Five different ways to command it (dashboard, on-screen joystick, keyboard, natural-language voice, and a fully autonomous PIN-typing routine) all flow through **one motion pipeline behind one safety gate**. Nothing gets a privileged path — the LLM agent is held to the exact same limit checks as a keyboard key press.
+
+**What's new in this round:** the original submission was intentionally fully client-side. Per faculty feedback requiring a backend + database component, this round adds an **optional** Node/Express/PostgreSQL service (`server/`) providing a **persistent event log** and **user accounts**, without changing a single line of the existing kinematics/validation/rendering core. See [Backend — persistent history & accounts](#backend--persistent-history--accounts-new) below.
 
 ---
 
@@ -17,6 +19,7 @@ A 7-DOF stylus arm, simulated and driven entirely in the browser — **no backen
 - **Safety first** — every command is bounds-checked (joint limits, reach envelope, solid surface) *before* execution; rejections are logged and spoken, never silently executed.
 - **The surface is solid** — no part of the arm may pass below the table, not just the tip. A jog held into the floor **slides to contact and stops flush**, and a joint move that is legal for the joint but would bury a link is refused outright.
 - **Fully client-side & verifiable** — pure-TypeScript kinematics core with **62 passing unit tests**; the FK anchor `(0, 0, 1.497 m)` is proven independently of three.js.
+- **Persistent history & accounts (optional, new)** — an Express + PostgreSQL backend lets a Registered Operator create an account and have their command history survive a page reload, on top of (not instead of) the existing in-memory Event Log.
 
 ---
 
@@ -164,6 +167,58 @@ The circuit covers the rubric's four elements — **power delivery** (shared 5 V
 
 ---
 
+## Backend — persistent history & accounts (new)
+
+Added this round on top of the existing, unmodified frontend, to satisfy the faculty requirement for a backend + database component. It is intentionally minimal and additive — two features, mapped directly onto use cases the frontend already implied but couldn't persist:
+
+| Use case | Before | Now |
+|---|---|---|
+| View my saved command history | Event Log resets on every page reload | `GET /api/events` returns it back, per account |
+| Manage account (register/login/logout) | N/A — every operator was a Guest Operator | `POST /api/auth/register` / `/login`, JWT sessions |
+
+**Stack:** Node.js + Express (TypeScript) · PostgreSQL · Prisma ORM · JWT (`jsonwebtoken`) · `bcrypt`.
+
+**Schema** (`server/prisma/schema.prisma`) — two tables:
+
+```
+users   id · name · email (unique) · passwordHash · createdAt
+events  id · userId (nullable) · source · type? · message · level · createdAt
+```
+
+`events` deliberately mirrors the frontend's existing in-memory `ArmEvent` shape (`src/state/store.ts`) — it's a persistence mirror of the same "one gate, one log" stream, not a second logging contract. `userId` is nullable because Guest Operators still generate events; they're just not filed under anyone's account.
+
+**API:**
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/api/auth/register` | — | Create an account (bcrypt-hashed password) |
+| POST | `/api/auth/login` | — | Exchange credentials for a JWT |
+| GET | `/api/auth/me` | Bearer | Restore a session from a stored token |
+| POST | `/api/events` | optional Bearer | Persist one event (guest or registered) |
+| GET | `/api/events` | optional Bearer | Read back saved history for the caller |
+
+**How it plugs into the existing app, without touching it:** `src/api/eventSync.ts` subscribes to the existing `useArmStore` from the outside and forwards new events to the API — it does not modify `useArmStore.log()` or any of the five command sources that call it. `AuthPanel` and `HistoryPanel` are new, self-contained components added to the sidebar; every existing panel, the kinematics core, `validate()`, and all 62 unit tests are untouched. If `VITE_API_BASE_URL` isn't set, both new components render nothing and the app behaves exactly as it did before this round.
+
+**Run it:**
+
+```bash
+cd server
+npm install
+cp .env.example .env            # point DATABASE_URL at your Postgres instance
+npx prisma migrate dev          # creates the users/events tables
+npm run dev                     # http://localhost:4000
+```
+
+Then, in the project root:
+
+```bash
+cp .env.example .env.local
+# uncomment/set: VITE_API_BASE_URL=http://localhost:4000
+npm run dev
+```
+
+---
+
 ## Run locally
 
 ```bash
@@ -178,6 +233,8 @@ Optional (enables the agentic voice layer only):
 ```bash
 cp .env.example .env.local   # then paste your Groq key from console.groq.com
 ```
+
+The backend (accounts + persistent history) is entirely optional and off by default — see [Backend — persistent history & accounts](#backend--persistent-history--accounts-new) above to enable it.
 
 ---
 
