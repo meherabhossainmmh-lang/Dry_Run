@@ -9,6 +9,8 @@ import ManualPanel from './components/ManualPanel';
 import EventLog from './components/EventLog';
 import VoicePanel from './voice/VoicePanel';
 import AgentPanel from './voice/AgentPanel';
+import AuthPanel from './components/AuthPanel';
+import HistoryPanel from './components/HistoryPanel';
 
 /**
  * Ground Control — the console layout.
@@ -40,6 +42,8 @@ export default function App() {
         </main>
 
         <aside className="flex w-80 shrink-0 flex-col gap-2.5 overflow-y-auto border-l border-hairline bg-carbon/60 p-3 lg:w-[23rem]">
+          <AuthPanel />
+          <HistoryPanel />
           <PinPad />
           <JointPanel />
           <VoicePanel />
