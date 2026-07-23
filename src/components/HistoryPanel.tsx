@@ -23,12 +23,15 @@ function fmtTime(iso: string): string {
 export default function HistoryPanel() {
   const { user, token } = useAuthStore();
   const [events, setEvents] = useState<ApiEvent[]>([]);
+  const [nextCursor, setNextCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!backendEnabled || !user || !token) {
       setEvents([]);
+      setNextCursor(null);
       return;
     }
     let cancelled = false;
@@ -36,8 +39,11 @@ export default function HistoryPanel() {
     setError(null);
     api
       .history(token)
-      .then(({ events }) => {
-        if (!cancelled) setEvents(events);
+      .then(({ events, nextCursor }) => {
+        if (!cancelled) {
+          setEvents(events);
+          setNextCursor(nextCursor);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load history');
@@ -49,6 +55,25 @@ export default function HistoryPanel() {
       cancelled = true;
     };
   }, [user, token]);
+
+  // Full history isn't capped at one page anymore — each click fetches the
+  // next older page via the cursor the backend handed back, so an account
+  // with thousands of saved events stays reachable rather than truncated.
+  const loadMore = () => {
+    if (!token || nextCursor == null || loadingMore) return;
+    setLoadingMore(true);
+    setError(null);
+    api
+      .history(token, { cursor: nextCursor })
+      .then(({ events: more, nextCursor: nc }) => {
+        setEvents((prev) => [...prev, ...more]);
+        setNextCursor(nc);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to load more history');
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
   if (!backendEnabled || !user) return null;
 
@@ -74,6 +99,16 @@ export default function HistoryPanel() {
           <span className={`min-w-0 ${LEVEL_TINT[e.level]}`}>{e.message}</span>
         </div>
       ))}
+      {nextCursor != null && (
+        <button
+          className="btn w-full py-1 text-[10px]"
+          onClick={loadMore}
+          disabled={loadingMore}
+          type="button"
+        >
+          {loadingMore ? 'Loading…' : 'Load more'}
+        </button>
+      )}
     </Panel>
   );
 }

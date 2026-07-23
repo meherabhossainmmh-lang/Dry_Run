@@ -195,7 +195,7 @@ events  id · userId (nullable) · source · type? · message · level · create
 | POST | `/api/auth/login` | — | Exchange credentials for a JWT |
 | GET | `/api/auth/me` | Bearer | Restore a session from a stored token |
 | POST | `/api/events` | optional Bearer | Persist one event (guest or registered) |
-| GET | `/api/events` | optional Bearer | Read back saved history for the caller |
+| GET | `/api/events` | optional Bearer | Read back saved history for the caller, cursor-paginated (`?limit=&cursor=&level=`, returns `nextCursor`) so history beyond one page stays reachable rather than truncated |
 
 **How it plugs into the existing app, without touching it:** `src/api/eventSync.ts` subscribes to the existing `useArmStore` from the outside and forwards new events to the API — it does not modify `useArmStore.log()` or any of the five command sources that call it. `AuthPanel` and `HistoryPanel` are new, self-contained components added to the sidebar; every existing panel, the kinematics core, `validate()`, and all 62 unit tests are untouched. If `VITE_API_BASE_URL` isn't set, both new components render nothing and the app behaves exactly as it did before this round.
 

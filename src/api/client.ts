@@ -85,8 +85,16 @@ export const api = {
       token,
     ),
 
-  history: (token: string, limit = 100) =>
-    request<{ events: ApiEvent[] }>(`/api/events?limit=${limit}`, {}, token),
+  history: (token: string, opts: { limit?: number; cursor?: number } = {}) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(opts.limit ?? 100));
+    if (opts.cursor) params.set('cursor', String(opts.cursor));
+    return request<{ events: ApiEvent[]; nextCursor: number | null }>(
+      `/api/events?${params.toString()}`,
+      {},
+      token,
+    );
+  },
 };
 
 export { ApiError };

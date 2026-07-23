@@ -44,6 +44,16 @@ router.post('/', optionalAuth, async (req: AuthedRequest, res) => {
   res.status(201).json({ event });
 });
 
+const historyQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+  // Opaque pagination token = the `id` of the last event on the previous
+  // page. `id` is monotonically increasing with insertion order (and thus
+  // with createdAt, since rows are only ever inserted, never reordered),
+  // so it's a stable single-column cursor without needing a compound key.
+  cursor: z.coerce.number().int().positive().optional(),
+  level: levelSchema.optional(),
+});
+
 /**
  * GET /api/events
  * - Registered operators (Bearer token present): returns their own saved
@@ -53,22 +63,37 @@ router.post('/', optionalAuth, async (req: AuthedRequest, res) => {
  *   and read-only, so the endpoint stays usable for a quick smoke test
  *   without leaking other operators' history.
  *
- * Optional query params: `limit` (default 100, max 200), `level`.
+ * Cursor-paginated so a full history is reachable in pages rather than
+ * hard-capped at one 200-row response: pass the previous response's
+ * `nextCursor` back as `?cursor=` to fetch the next older page.
+ *
+ * Query params: `limit` (default 100, max 200 per page), `cursor`, `level`.
  */
 router.get('/', optionalAuth, async (req: AuthedRequest, res) => {
-  const limit = Math.min(Number(req.query.limit ?? 100) || 100, 200);
-  const level = typeof req.query.level === 'string' ? req.query.level : undefined;
+  const parsed = historyQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid query params', details: parsed.error.flatten() });
+    return;
+  }
+  const { limit, cursor, level } = parsed.data;
 
-  const events = await prisma.event.findMany({
+  // Fetch one extra row past the page size — its presence (or absence)
+  // tells us whether there's a next page without a separate COUNT query.
+  const rows = await prisma.event.findMany({
     where: {
       userId: req.userId ?? null,
       ...(level ? { level } : {}),
     },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
+    orderBy: { id: 'desc' },
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
 
-  res.json({ events });
+  const hasMore = rows.length > limit;
+  const events = hasMore ? rows.slice(0, limit) : rows;
+  const nextCursor = hasMore ? events[events.length - 1].id : null;
+
+  res.json({ events, nextCursor });
 });
 
 export default router;
