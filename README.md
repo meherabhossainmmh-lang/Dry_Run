@@ -228,6 +228,18 @@ npm run build      # tsc -b && vite build
 npx vitest run     # 62 unit tests
 ```
 
+The backend has its own suite too — 29 tests covering JWT sign/verify, the
+`requireAuth`/`optionalAuth` middleware, and the `/api/auth` and `/api/events`
+routes against a mocked Prisma client (no live DB needed): password hashing
+(never plaintext, no user-enumeration on login), guest-vs-authenticated event
+attribution, and the pagination cursor logic.
+
+```bash
+cd server
+npm install
+npm test           # 29 tests
+```
+
 Optional (enables the agentic voice layer only):
 
 ```bash
