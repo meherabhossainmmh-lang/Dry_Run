@@ -252,6 +252,48 @@ The backend (accounts + persistent history) is entirely optional and off by defa
 
 ---
 
+## Deployment
+
+The frontend and backend are independent deployables — deploy one without the other, or both. There's no build-time coupling between them; the only link is a URL each side is told about at runtime.
+
+**Frontend** (static build — Vercel, Netlify, GitHub Pages, or any static host):
+
+```bash
+npm run build      # outputs dist/
+```
+
+Set `VITE_API_BASE_URL` to the deployed backend's URL as a build-time env
+var on the host (not `.env.local`, which isn't available at deploy time
+unless the host reads it). If it's unset, the app runs exactly as it does
+without a backend at all — guest-only, no persistence, nothing breaks.
+
+**Backend** (Node service — Render, Railway, Fly.io, or any host that runs `npm start`) + a managed Postgres instance:
+
+```bash
+npm run prisma:deploy   # applies the committed migrations, no prompts
+npm run build
+npm start
+```
+
+Environment variables the backend needs set on the host:
+
+| Var | Value |
+|---|---|
+| `DATABASE_URL` | Connection string from your managed Postgres provider |
+| `JWT_SECRET` | A long random string — **generate a fresh one for production**, don't reuse the local dev value |
+| `CORS_ORIGIN` | The deployed frontend's origin — see below |
+| `PORT` | Usually set automatically by the host; only set manually if it isn't |
+
+**Connecting the two — `CORS_ORIGIN` is the part most likely to get missed.** It defaults to `http://localhost:5173` (the local dev server) only. Once the frontend has a real deployed URL, the backend needs to be told to allow it too, or every request will fail CORS with no useful error client-side beyond "Failed to fetch":
+
+```
+CORS_ORIGIN=http://localhost:5173,https://your-deployed-frontend.example.com
+```
+
+It's comma-separated, so local dev and the deployed frontend can both be listed at once — you don't have to choose.
+
+---
+
 ## Tech stack & attribution
 
 **Frontend:** React 19 · Vite · TypeScript (strict) · Tailwind CSS · **three.js** (MIT) · **urdf-loader** by gkjohnson (MIT) · zustand · zod · Web Speech API · Groq API · Wokwi. Provided assets: `stylus_arm.urdf`, `key.config.json`.
