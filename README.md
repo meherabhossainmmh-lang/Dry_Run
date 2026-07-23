@@ -199,14 +199,28 @@ events  id · userId (nullable) · source · type? · message · level · create
 
 **How it plugs into the existing app, without touching it:** `src/api/eventSync.ts` subscribes to the existing `useArmStore` from the outside and forwards new events to the API — it does not modify `useArmStore.log()` or any of the five command sources that call it. `AuthPanel` and `HistoryPanel` are new, self-contained components added to the sidebar; every existing panel, the kinematics core, `validate()`, and all 62 unit tests are untouched. If `VITE_API_BASE_URL` isn't set, both new components render nothing and the app behaves exactly as it did before this round.
 
-**Run it:**
+**Run it (local dev):**
 
 ```bash
 cd server
 npm install
 cp .env.example .env            # point DATABASE_URL at your Postgres instance
-npx prisma migrate dev          # creates the users/events tables
+npx prisma migrate dev          # applies the committed migration, creates the users/events tables
 npm run dev                     # http://localhost:4000
+```
+
+**Run it (production / managed Postgres):** the initial schema migration is committed at
+[`server/prisma/migrations/20260723000000_init`](server/prisma/migrations/20260723000000_init/migration.sql)
+— `prisma migrate dev` is a *dev-only* command that also generates new migrations from schema
+drift, which typically isn't available (or wanted) against a managed database. Deploys should
+run the non-interactive counterpart instead:
+
+```bash
+cd server
+npm install
+npm run prisma:deploy   # `prisma migrate deploy` — applies committed migrations only, no prompts
+npm run build            # tsc -b
+npm start                 # node dist/index.js
 ```
 
 Then, in the project root:
