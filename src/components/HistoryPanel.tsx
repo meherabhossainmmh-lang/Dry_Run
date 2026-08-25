@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../state/authStore';
 import { api, backendEnabled, type ApiEvent } from '../api/client';
 import { onHistoryChanged } from '../api/eventSync';
@@ -37,6 +37,19 @@ export default function HistoryPanel() {
   const [error, setError] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  // firstLoadRef: only the initial fetch (or an account switch) shows "Loading…"
+  // — background refreshes stay silent so the panel never flickers.
+  const firstLoadRef = useRef(true);
+  // expandedRef: true once "Load more" has been used — auto-refresh pauses
+  // then, so a reader paging through older history isn't yanked back to page 1.
+  const expandedRef = useRef(false);
+
+  // Reset per-account fetch state when the signed-in account changes.
+  // (Declared before the fetch effect so the flags are fresh when it runs.)
+  useEffect(() => {
+    firstLoadRef.current = true;
+    expandedRef.current = false;
+  }, [user, token]);
 
   useEffect(() => {
     if (!backendEnabled || !user || !token) {
@@ -45,7 +58,7 @@ export default function HistoryPanel() {
       return;
     }
     let cancelled = false;
-    setLoading(true);
+    if (firstLoadRef.current) setLoading(true);
     setError(null);
     api
       .history(token)
@@ -59,7 +72,10 @@ export default function HistoryPanel() {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load history');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          firstLoadRef.current = false;
+        }
       });
     return () => {
       cancelled = true;
@@ -80,11 +96,26 @@ export default function HistoryPanel() {
     };
   }, []);
 
+  // Cross-client liveness: the in-tab signal above only covers events
+  // persisted by THIS browser (your own commands). A light poll every few
+  // seconds also picks up other sessions — e.g. a guest driving the arm in
+  // another window appears in the admin's history without a manual reload.
+  useEffect(() => {
+    if (!backendEnabled || !user || !token) return;
+    const id = setInterval(() => {
+      if (document.hidden) return; // skip background tabs
+      if (expandedRef.current) return; // reader paged back — don't disturb
+      setRefreshKey((k) => k + 1);
+    }, 4000);
+    return () => clearInterval(id);
+  }, [user, token]);
+
   // Full history isn't capped at one page anymore — each click fetches the
   // next older page via the cursor the backend handed back, so an account
   // with thousands of saved events stays reachable rather than truncated.
   const loadMore = () => {
     if (!token || nextCursor == null || loadingMore) return;
+    expandedRef.current = true;
     setLoadingMore(true);
     setError(null);
     api
@@ -112,6 +143,7 @@ export default function HistoryPanel() {
       .then(() => {
         setEvents([]);
         setNextCursor(null);
+        expandedRef.current = false;
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : 'Failed to clear history');
