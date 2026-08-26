@@ -28,6 +28,10 @@ export default function App() {
 
   const handleModeChange = (mode: 'guest' | 'user' | 'admin' | null) => {
     clearLogs();
+    // Guest entry is itself auditable activity — it syncs to the backend
+    // anonymously (no account), so the admin's history shows it with a
+    // time and the red (Guest) tag.
+    if (mode === 'guest') log('system', 'Guest session started', 'info');
     setEntryMode(mode);
   };
 
