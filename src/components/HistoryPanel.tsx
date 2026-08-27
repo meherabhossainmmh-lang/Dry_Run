@@ -205,6 +205,13 @@ export default function HistoryPanel() {
               {e.user.role === 'ADMIN' ? 'Admin' : 'Operator'}: {e.user.email}
             </div>
           )}
+          {/* Guest activity: events saved without an account (userId null). Only the
+              admin view ever receives these, so the red (Guest) tag is admin-only. */}
+          {!e.user && user?.role === 'ADMIN' && (
+            <div className="text-[9px] pl-[104px] uppercase tracking-tighter text-alarm font-bold">
+              (Guest)
+            </div>
+          )}
         </div>
       ))}
       {nextCursor != null && (
