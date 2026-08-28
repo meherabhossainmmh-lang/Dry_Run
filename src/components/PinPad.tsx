@@ -28,13 +28,13 @@ export default function PinPad() {
   const shown = committed ? pp.pin : typed;
 
   useEffect(() => {
-    // Background cleanup: Clear highlights and 3D scene only after 30s of total inactivity
+    // Background cleanup: Clear highlights and 3D scene only after 3s of total inactivity
     if ((pin.length > 0 || pp.results.length > 0) && !running) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
         setPin('');
         setPinProgress({ running: false, pin: [], index: 0, phase: 'idle', results: [] });
-      }, 30000);
+      }, 3000); // Reduced to 3 seconds for faster cleanup
     }
     
     return () => {

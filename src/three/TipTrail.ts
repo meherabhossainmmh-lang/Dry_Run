@@ -8,7 +8,7 @@ import * as THREE from 'three';
 export class TipTrail {
   readonly line: THREE.Line;
   private points: { x: number; y: number; z: number; age: number }[] = [];
-  private maxAge = 2.5; // seconds
+  private maxAge = 1.2; // Reduced to 1.2s for faster disappearance
   private maxPoints = 500;
   private last = new THREE.Vector3(Infinity, Infinity, Infinity);
 
