@@ -23,6 +23,11 @@ model User {
   name         String
   email        String   @unique
   passwordHash String
+  // Admin-recoverable copy of the current password (demo convenience for the
+  // admin panel's "view current password" tool). Kept in sync on register,
+  // login and admin password resets. The hash above remains what login
+  // actually verifies against.
+  passwordPlain String?
   role         String   @default("USER") // "USER" or "ADMIN"
   isBlocked    Boolean  @default(false)
   createdAt    DateTime @default(now())

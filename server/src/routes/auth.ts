@@ -39,7 +39,9 @@ router.post('/register', async (req, res) => {
   if (existing) return res.status(409).json({ error: 'Account already exists' });
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = await prisma.user.create({ data: { name, email, passwordHash } });
+  // passwordPlain: admin-recoverable copy for the admin panel's "view current
+  // password" tool. The hash remains what login verifies against.
+  const user = await prisma.user.create({ data: { name, email, passwordHash, passwordPlain: password } });
 
   res.status(201).json({ user: publicUser(user) });
 });
@@ -58,6 +60,10 @@ router.post('/login', async (req, res) => {
 
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+
+  // Keep the admin-recoverable copy in sync with whatever password just
+  // verified, so the admin panel always shows the current one.
+  await prisma.user.update({ where: { id: user.id }, data: { passwordPlain: password } });
 
   res.json({ token: signToken({ sub: user.id, email: user.email }), user: publicUser(user) });
 });
