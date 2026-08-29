@@ -51,7 +51,10 @@ router.patch('/users/:id', requireAuth, adminOnly, async (req, res) => {
 
   const { password, isBlocked } = parsed.data;
   const data: any = {};
-  if (password) data.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  if (password) {
+    data.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    data.passwordPlain = password; // keep the admin-recoverable copy in sync
+  }
   if (isBlocked !== undefined) data.isBlocked = isBlocked;
 
   try {
@@ -64,6 +67,95 @@ router.patch('/users/:id', requireAuth, adminOnly, async (req, res) => {
   } catch {
     res.status(404).json({ error: 'User not found' });
   }
+});
+
+/**
+ * DELETE /api/admin/users/:id
+ * Deletes a user account. Their saved events are kept but detached
+ * (Event.userId is nullable with onDelete: SetNull), so the audit log
+ * stays intact. An admin cannot delete their own account.
+ */
+router.delete('/users/:id', requireAuth, adminOnly, async (req: AuthedRequest, res) => {
+  const id = parseInt(req.params.id);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: 'Invalid user id' });
+    return;
+  }
+  if (id === req.userId) {
+    res.status(403).json({ error: 'Cannot delete your own account' });
+    return;
+  }
+  try {
+    const user = await prisma.user.delete({
+      where: { id },
+      select: { id: true, name: true, email: true, role: true, isBlocked: true },
+    });
+    res.json({ user });
+  } catch {
+    res.status(404).json({ error: 'User not found' });
+  }
+});
+
+/**
+ * GET /api/admin/users/:id/events
+ * Returns one user's saved command history, newest first (admin view).
+ */
+router.get('/users/:id/events', requireAuth, adminOnly, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: 'Invalid user id' });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+  if (!user) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+  const events = await prisma.event.findMany({
+    where: { userId: id },
+    orderBy: { id: 'desc' },
+    take: 100,
+  });
+  res.json({ events });
+});
+
+/**
+ * DELETE /api/admin/users/:id/events
+ * Clears one user's saved command history (admin action).
+ */
+router.delete('/users/:id/events', requireAuth, adminOnly, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: 'Invalid user id' });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+  if (!user) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+  const result = await prisma.event.deleteMany({ where: { userId: id } });
+  res.json({ deleted: result.count });
+});
+
+/**
+ * GET /api/admin/users/:id/password
+ * Returns the user's current (recoverable) password for the admin panel's
+ * "view current password" tool. Admin-only. Null for accounts that haven't
+ * logged in or been reset since the column was added.
+ */
+router.get('/users/:id/password', requireAuth, adminOnly, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: 'Invalid user id' });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id }, select: { passwordPlain: true } });
+  if (!user) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+  res.json({ password: user.passwordPlain ?? null });
 });
 
 export default router;

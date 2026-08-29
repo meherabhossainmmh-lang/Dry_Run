@@ -111,6 +111,18 @@ export const api = {
       body: JSON.stringify(data),
     }, token),
 
+  deleteUser: (token: string, id: number) =>
+    request<{ user: PublicUser }>(`/api/admin/users/${id}`, { method: 'DELETE' }, token),
+
+  userHistory: (token: string, id: number) =>
+    request<{ events: ApiEvent[] }>(`/api/admin/users/${id}/events`, {}, token),
+
+  clearUserHistory: (token: string, id: number) =>
+    request<{ deleted: number }>(`/api/admin/users/${id}/events`, { method: 'DELETE' }, token),
+
+  getUserPassword: (token: string, id: number) =>
+    request<{ password: string | null }>(`/api/admin/users/${id}/password`, {}, token),
+
   requestCode: (email: string) => 
     request<{ message: string }>('/api/auth/request-code', {
       method: 'POST',

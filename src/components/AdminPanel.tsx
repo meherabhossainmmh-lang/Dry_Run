@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../state/authStore';
-import { api, backendEnabled, type PublicUser } from '../api/client';
+import { api, backendEnabled, type ApiEvent, type PublicUser } from '../api/client';
 import Panel from './ui/Panel';
 
 export default function AdminPanel() {
@@ -10,6 +10,15 @@ export default function AdminPanel() {
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  // current-password viewer (admin tool)
+  const [currentPw, setCurrentPw] = useState<string | null>(null);
+  const [pwVisible, setPwVisible] = useState(true);
+
+  // admin tools state (search / per-user history / delete)
+  const [search, setSearch] = useState('');
+  const [historyUser, setHistoryUser] = useState<number | null>(null);
+  const [historyEvents, setHistoryEvents] = useState<ApiEvent[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const isAdmin = user?.role === 'ADMIN';
 
@@ -44,11 +53,74 @@ export default function AdminPanel() {
     if (!token || !newPassword) return;
     try {
       await api.updateUser(token, id, { password: newPassword });
+      setCurrentPw(newPassword); // keep the shown "current" value in sync
       setNewPassword('');
       setSelectedUser(null);
       alert('Password changed successfully');
     } catch {
       setError('Failed to change password');
+    }
+  };
+
+  // --- admin tools: open the password section, fetching the current one ---
+  const openPassword = async (id: number) => {
+    if (selectedUser === id) {
+      setSelectedUser(null);
+      return;
+    }
+    setSelectedUser(id);
+    setCurrentPw(null);
+    setPwVisible(true);
+    if (!token) return;
+    try {
+      const res = await api.getUserPassword(token, id);
+      setCurrentPw(res.password);
+    } catch {
+      setCurrentPw(null);
+    }
+  };
+
+  // --- admin tools: delete a user (their saved events stay in the log, detached) ---
+  const deleteUser = async (u: PublicUser) => {
+    if (!token) return;
+    if (!window.confirm(`Delete ${u.name} (${u.email})? Their saved events stay in the log.`)) return;
+    try {
+      await api.deleteUser(token, u.id);
+      refresh();
+    } catch {
+      setError('Failed to delete user');
+    }
+  };
+
+  // --- admin tools: open/close one user's saved history ---
+  const openHistory = async (id: number) => {
+    if (!token) return;
+    if (historyUser === id) {
+      setHistoryUser(null);
+      return;
+    }
+    setHistoryUser(id);
+    setHistoryLoading(true);
+    setHistoryEvents([]);
+    try {
+      const res = await api.userHistory(token, id);
+      setHistoryEvents(res.events);
+    } catch {
+      setError('Failed to load history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // --- admin tools: clear one user's saved history ---
+  const clearUserHistory = async (id: number) => {
+    if (!token) return;
+    if (!window.confirm("Clear this user's saved command history? This cannot be undone.")) return;
+    try {
+      await api.clearUserHistory(token, id);
+      setHistoryEvents([]);
+    } catch {
+      setError('Failed to clear history');
     }
   };
 
@@ -60,11 +132,45 @@ export default function AdminPanel() {
     return created > oneDayAgo;
   });
 
+  // --- admin tools: live stats + search filter (client-side, no backend change) ---
+  const stats = {
+    total: users.length,
+    active: users.filter(u => !u.isBlocked).length,
+    blocked: users.filter(u => u.isBlocked).length,
+    newAccounts: newUsers.length,
+  };
+
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? users.filter(u =>
+        u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+      )
+    : users;
+
   return (
     <Panel title="Admin: User Management" delay={400}>
       {loading && <div className="text-[11px] text-dim">Loading users...</div>}
       {error && <div className="text-[11px] text-alarm">{error}</div>}
-      
+
+      <div className="mb-4 grid grid-cols-4 gap-1.5">
+        <div className="well rounded border border-hairline p-1.5 text-center">
+          <div className="text-[13px] font-bold text-ink font-mono">{stats.total}</div>
+          <div className="text-[8px] uppercase tracking-widest text-dim">Total</div>
+        </div>
+        <div className="well rounded border border-ok/30 p-1.5 text-center">
+          <div className="text-[13px] font-bold text-ok font-mono">{stats.active}</div>
+          <div className="text-[8px] uppercase tracking-widest text-dim">Active</div>
+        </div>
+        <div className="well rounded border border-alarm/40 p-1.5 text-center">
+          <div className="text-[13px] font-bold text-alarm font-mono">{stats.blocked}</div>
+          <div className="text-[8px] uppercase tracking-widest text-dim">Blocked</div>
+        </div>
+        <div className="well rounded border border-flare/40 p-1.5 text-center">
+          <div className="text-[13px] font-bold text-flare font-mono">{stats.newAccounts}</div>
+          <div className="text-[8px] uppercase tracking-widest text-dim">New 24h</div>
+        </div>
+      </div>
+
       {newUsers.length > 0 && (
         <div className="mb-4 space-y-1">
           <div className="text-[9px] uppercase tracking-widest text-flare font-bold">New Accounts (Last 24h)</div>
@@ -76,8 +182,19 @@ export default function AdminPanel() {
         </div>
       )}
 
+      <input
+        type="text"
+        placeholder="Search users by name or email..."
+        className="well w-full rounded px-2 py-1.5 text-[11px] text-ink outline-none mb-2"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+      />
+
       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-        {users.map(u => (
+        {filtered.length === 0 && (
+          <div className="text-[10px] text-dim text-center py-2">No users match your search.</div>
+        )}
+        {filtered.map(u => (
           <div key={u.id} className="border border-hairline p-2 rounded bg-void/30">
             <div className="flex justify-between items-start">
               <div className="min-w-0">
@@ -96,28 +213,82 @@ export default function AdminPanel() {
                 </button>
                 <button 
                   className="btn px-2 py-0.5 text-[9px]"
-                  onClick={() => setSelectedUser(selectedUser === u.id ? null : u.id)}
+                  onClick={() => openPassword(u.id)}
                 >
                   Password
+                </button>
+                <button
+                  className={`btn px-2 py-0.5 text-[9px] ${historyUser === u.id ? 'btn-flare' : ''}`}
+                  onClick={() => openHistory(u.id)}
+                >
+                  History
+                </button>
+                <button
+                  className="btn btn-alarm px-2 py-0.5 text-[9px]"
+                  onClick={() => deleteUser(u)}
+                >
+                  Delete
                 </button>
               </div>
             </div>
             
             {selectedUser === u.id && (
-              <div className="mt-2 flex gap-1">
-                <input 
-                  type="password"
-                  placeholder="New password"
-                  className="well flex-1 px-2 py-1 text-[10px]"
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                />
-                <button 
-                  className="btn px-2 text-[9px]"
-                  onClick={() => changePassword(u.id)}
-                >
-                  Set
-                </button>
+              <div className="mt-2 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-[10px]">
+                  <span className="text-dim uppercase tracking-widest shrink-0">Current:</span>
+                  <span className="font-mono text-ink min-w-0 truncate">
+                    {currentPw == null ? '—' : pwVisible ? currentPw : '••••••••'}
+                  </span>
+                  {currentPw != null && (
+                    <button
+                      className="btn px-1.5 py-0.5 text-[9px] shrink-0"
+                      onClick={() => setPwVisible(v => !v)}
+                    >
+                      {pwVisible ? 'Hide' : 'Show'}
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  <input 
+                    type="password"
+                    placeholder="New password"
+                    className="well flex-1 px-2 py-1 text-[10px]"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                  />
+                  <button 
+                    className="btn px-2 text-[9px]"
+                    onClick={() => changePassword(u.id)}
+                  >
+                    Set
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {historyUser === u.id && (
+              <div className="mt-2 border-t border-hairline pt-2">
+                {historyLoading && <div className="text-[10px] text-dim">Loading history...</div>}
+                {!historyLoading && historyEvents.length === 0 && (
+                  <div className="text-[10px] text-dim">No saved events for this user.</div>
+                )}
+                <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                  {historyEvents.map(ev => (
+                    <div key={ev.id} className="flex gap-2 text-[10px] leading-relaxed">
+                      <span className="num shrink-0 text-dim">{new Date(ev.createdAt).toLocaleTimeString()}</span>
+                      <span className="num w-[58px] shrink-0 uppercase text-muted">{ev.source}</span>
+                      <span className="min-w-0 flex-1 text-ink/80">{ev.message}</span>
+                    </div>
+                  ))}
+                </div>
+                {historyEvents.length > 0 && (
+                  <button
+                    className="btn btn-alarm w-full py-0.5 text-[9px] mt-1.5"
+                    onClick={() => clearUserHistory(u.id)}
+                  >
+                    Clear this user's history
+                  </button>
+                )}
               </div>
             )}
           </div>
