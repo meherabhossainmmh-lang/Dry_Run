@@ -27,6 +27,12 @@ export default function App() {
   }, [status, user, entryMode]);
 
   const handleModeChange = (mode: 'guest' | 'user' | 'admin' | null) => {
+    // Guest exit is auditable too — logged BEFORE the session log is
+    // cleared, so it still syncs to the backend anonymously and shows up
+    // in the admin's history with the red (Guest) tag.
+    if (mode === null && entryMode === 'guest') {
+      log('system', 'Guest session ended', 'info');
+    }
     clearLogs();
     // Guest entry is itself auditable activity — it syncs to the backend
     // anonymously (no account), so the admin's history shows it with a
