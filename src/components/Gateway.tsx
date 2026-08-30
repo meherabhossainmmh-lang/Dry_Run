@@ -20,7 +20,10 @@ export default function Gateway({ onEnter }: GatewayProps) {
     const isAdmin = view === 'admin';
     try {
       await login(email, password, isAdmin);
-      log('security', `Login attempt: ${email} (pw: ${password})`, 'security');
+      // No password in the log — the admin panel has a proper "view current
+      // password" tool. The "Signed in as" prefix keeps this row out of the
+      // user's own history view (backend filter).
+      log('security', `Signed in as ${email}`, 'security');
       onEnter(isAdmin ? 'admin' : 'user');
     } catch (err) {}
   };
@@ -29,7 +32,9 @@ export default function Gateway({ onEnter }: GatewayProps) {
     e.preventDefault();
     try {
       await register(name, email, password);
-      log('security', `New account created: ${email} (name: ${name}, pw: ${password})`, 'security');
+      // No client-side log here — there is no token yet at this point, so the
+      // event would be filed under "guest". The backend records
+      // "Account registered for …" with the new account attached.
       alert('Account created successfully! Please sign in with your credentials.');
       setView('login');
       setName('');
