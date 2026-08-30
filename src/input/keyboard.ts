@@ -6,7 +6,7 @@ import { useArmStore } from '../state/store';
 // Letter keys jog individual joints (hold to jog). key → [joint index, sign]
 const JOG_KEYS: Record<string, [number, number]> = {
   a: [0, +1], d: [0, -1], // J1 base yaw
-  w: [1, +1], s: [1, -1], // J2 shoulder
+  i: [1, +1], k: [1, -1], // J2 shoulder
   q: [2, +1], e: [2, -1], // J3 elbow
   z: [3, +1], x: [3, -1], // J4 forearm roll
   r: [4, +1], f: [4, -1], // J5 wrist pitch

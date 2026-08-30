@@ -5,7 +5,7 @@ import Panel from './ui/Panel';
 
 const JOINT_ROWS: [string, string][] = [
   ['A / D', 'Base yaw'],
-  ['W / S', 'Shoulder'],
+  ['I / K', 'Shoulder'],
   ['Q / E', 'Elbow'],
   ['Z / X', 'Forearm roll'],
   ['R / F', 'Wrist pitch'],
