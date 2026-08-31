@@ -191,7 +191,9 @@ export default function AdminPanel() {
       )}
 
       <input
-        type="text"
+        type="search"
+        name="user-search"
+        autoComplete="off"
         placeholder="Search users by name or email..."
         className="well w-full rounded px-2 py-1.5 text-[11px] text-ink outline-none mb-2"
         value={search}
