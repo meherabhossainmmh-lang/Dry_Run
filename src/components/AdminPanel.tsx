@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../state/authStore';
 import { api, backendEnabled, type ApiEvent, type PublicUser } from '../api/client';
 import Panel from './ui/Panel';
@@ -19,6 +19,10 @@ export default function AdminPanel() {
   const [historyUser, setHistoryUser] = useState<number | null>(null);
   const [historyEvents, setHistoryEvents] = useState<ApiEvent[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  // request guards — a quick switch between users must not let a slow, stale
+  // response overwrite the section that is open now
+  const pwReqRef = useRef(0);
+  const histReqRef = useRef(0);
 
   const isAdmin = user?.role === 'ADMIN';
 
@@ -72,11 +76,12 @@ export default function AdminPanel() {
     setCurrentPw(null);
     setPwVisible(true);
     if (!token) return;
+    const req = ++pwReqRef.current; // guard: ignore stale responses after a quick user switch
     try {
       const res = await api.getUserPassword(token, id);
-      setCurrentPw(res.password);
+      if (pwReqRef.current === req) setCurrentPw(res.password);
     } catch {
-      setCurrentPw(null);
+      if (pwReqRef.current === req) setCurrentPw(null);
     }
   };
 
@@ -102,13 +107,14 @@ export default function AdminPanel() {
     setHistoryUser(id);
     setHistoryLoading(true);
     setHistoryEvents([]);
+    const req = ++histReqRef.current; // guard: ignore stale responses after a quick user switch
     try {
       const res = await api.userHistory(token, id);
-      setHistoryEvents(res.events);
+      if (histReqRef.current === req) setHistoryEvents(res.events);
     } catch {
-      setError('Failed to load history');
+      if (histReqRef.current === req) setError('Failed to load history');
     } finally {
-      setHistoryLoading(false);
+      if (histReqRef.current === req) setHistoryLoading(false);
     }
   };
 

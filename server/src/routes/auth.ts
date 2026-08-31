@@ -43,6 +43,19 @@ router.post('/register', async (req, res) => {
   // password" tool. The hash remains what login verifies against.
   const user = await prisma.user.create({ data: { name, email, passwordHash, passwordPlain: password } });
 
+  // The account-creation event is recorded here, server-side, so it is attached
+  // to the new account. (A client-side log at this point has no token yet and
+  // would wrongly file the event under "guest". The message matches the filter
+  // that keeps security rows out of each operator's own history view.)
+  await prisma.event.create({
+    data: {
+      source: 'security',
+      message: `Account registered for ${email}`,
+      level: 'security',
+      userId: user.id,
+    },
+  });
+
   res.status(201).json({ user: publicUser(user) });
 });
 
