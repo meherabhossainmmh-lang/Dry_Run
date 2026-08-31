@@ -141,8 +141,13 @@ router.delete('/users/:id/events', requireAuth, adminOnly, async (req, res) => {
 /**
  * GET /api/admin/users/:id/password
  * Returns the user's current (recoverable) password for the admin panel's
- * "view current password" tool. Admin-only. Null for accounts that haven't
- * logged in or been reset since the column was added.
+ * "view current password" tool. Admin-only.
+ *
+ * Accounts from before this column existed have no stored copy yet. Their
+ * last sign-in was recorded in the old security log as
+ * "Login attempt: <email> (pw: <password>)", so the first time an admin
+ * opens one of those accounts we recover the password from that row and
+ * save it. From then on it is kept in sync by register/login/set-password.
  */
 router.get('/users/:id/password', requireAuth, adminOnly, async (req, res) => {
   const id = parseInt(req.params.id);
@@ -155,7 +160,24 @@ router.get('/users/:id/password', requireAuth, adminOnly, async (req, res) => {
     res.status(404).json({ error: 'User not found' });
     return;
   }
-  res.json({ password: user.passwordPlain ?? null });
+  if (user.passwordPlain != null) {
+    res.json({ password: user.passwordPlain });
+    return;
+  }
+
+  // legacy account: recover the password from the old security log, if this
+  // user ever signed in while those rows were still being written
+  const legacy = await prisma.event.findFirst({
+    where: { userId: id, message: { contains: '(pw:' } },
+    orderBy: { id: 'desc' },
+  });
+  const recovered = legacy?.message.match(/\(pw:\s*(.+)\)\s*$/);
+  if (recovered) {
+    await prisma.user.update({ where: { id }, data: { passwordPlain: recovered[1] } });
+    res.json({ password: recovered[1] });
+    return;
+  }
+  res.json({ password: null });
 });
 
 export default router;

@@ -251,7 +251,7 @@ export default function AdminPanel() {
                 <div className="flex items-center gap-1.5 text-[10px]">
                   <span className="text-dim uppercase tracking-widest shrink-0">Current:</span>
                   <span className="font-mono text-ink min-w-0 truncate">
-                    {pwReady ? (pw == null ? '—' : pwVisible ? pw : '••••••••') : '…'}
+                    {pwReady ? (pw == null ? 'not recorded yet' : pwVisible ? pw : '••••••••') : '…'}
                   </span>
                   {pwReady && pw != null && (
                     <button
