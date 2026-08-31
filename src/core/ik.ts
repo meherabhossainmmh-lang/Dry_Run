@@ -6,7 +6,6 @@ import { CHAIN, NJ } from './chain';
 import { KEY_POINTS, KEY_HOVER } from './keys';
 
 const LAMBDA2_BASE = 0.08 * 0.08; // DLS base damping λ²
-const LAMBDA2_MAX = 0.3 * 0.3;   // Max damping for singularity regions
 const DQ_CAP = 0.2;          // max |Δq| per joint per iter (rad)
 const KW = 0.5;              // tip-down orientation task weight
 export const POS_TOL = 0.001; // 1 mm convergence
