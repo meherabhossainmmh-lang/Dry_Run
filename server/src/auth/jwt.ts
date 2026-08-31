@@ -19,4 +19,3 @@ export function verifyToken(token: string): TokenPayload {
   return jwt.verify(token, env.JWT_SECRET) as unknown as TokenPayload;
 }
 
-// contribution audit 2026-07-23 10:30:00

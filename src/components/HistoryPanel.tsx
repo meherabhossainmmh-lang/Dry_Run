@@ -32,8 +32,6 @@ export default function HistoryPanel() {
   const [nextCursor, setNextCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [levelFilter, setLevelFilter] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -228,6 +226,3 @@ export default function HistoryPanel() {
   );
 }
 
-// contribution audit 2026-07-16 11:00:00
-// contribution audit 2026-07-20 10:45:00
-// build update 2026-07-20 11:00:00

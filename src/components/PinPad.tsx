@@ -20,7 +20,7 @@ export default function PinPad() {
   const [pin, setPin] = useState(''); // always normalised to 1–6 digits only
   const { pinProgress: pp, setPinProgress } = useArmStore();
   const running = pp.running;
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const typed = parsePin(pin);
   const matchesRun = pp.pin.length === typed.length && pp.pin.every((d, i) => d === typed[i]);

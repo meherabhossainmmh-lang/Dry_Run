@@ -79,7 +79,7 @@ export const api = {
   me: (token: string) => request<{ user: PublicUser }>('/api/auth/me', {}, token),
 
   logEvent: (
-    event: { source: string; type?: string; message: string; level: 'info' | 'warn' | 'error' },
+    event: { source: string; type?: string; message: string; level: 'info' | 'warn' | 'error' | 'security' },
     token?: string | null,
   ) =>
     request<{ event: ApiEvent }>(

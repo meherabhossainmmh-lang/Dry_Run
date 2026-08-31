@@ -98,4 +98,7 @@ export function validate(cmd: MotionCommand, q: number[]): ValidateResult {
       return OK;
     }
   }
+  // Fail closed: if a command type is ever added to the union without a case
+  // above, reject it instead of returning undefined.
+  return { ok: false, reason: `unsupported command type` };
 }

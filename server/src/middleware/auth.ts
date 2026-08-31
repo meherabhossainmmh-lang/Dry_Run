@@ -44,4 +44,3 @@ export function optionalAuth(req: AuthedRequest, _res: Response, next: NextFunct
   next();
 }
 
-// contribution audit 2026-07-25 11:45:00
