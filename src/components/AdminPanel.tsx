@@ -10,14 +10,16 @@ export default function AdminPanel() {
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [newPassword, setNewPassword] = useState('');
-  // current-password viewer (admin tool)
-  const [currentPw, setCurrentPw] = useState<string | null>(null);
+  // current-password viewer (admin tool) — the fetched password is stored
+  // together with the id of the user it belongs to, so it can NEVER be
+  // rendered under the wrong card, no matter the response timing
+  const [pwView, setPwView] = useState<{ id: number; password: string | null } | null>(null);
   const [pwVisible, setPwVisible] = useState(true);
 
   // admin tools state (search / per-user history / delete)
   const [search, setSearch] = useState('');
   const [historyUser, setHistoryUser] = useState<number | null>(null);
-  const [historyEvents, setHistoryEvents] = useState<ApiEvent[]>([]);
+  const [historyData, setHistoryData] = useState<{ id: number; events: ApiEvent[] } | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   // request guards — a quick switch between users must not let a slow, stale
   // response overwrite the section that is open now
@@ -57,7 +59,7 @@ export default function AdminPanel() {
     if (!token || !newPassword) return;
     try {
       await api.updateUser(token, id, { password: newPassword });
-      setCurrentPw(newPassword); // keep the shown "current" value in sync
+      setPwView({ id, password: newPassword }); // keep the shown "current" value in sync
       setNewPassword('');
       setSelectedUser(null);
       alert('Password changed successfully');
@@ -73,15 +75,15 @@ export default function AdminPanel() {
       return;
     }
     setSelectedUser(id);
-    setCurrentPw(null);
+    setPwView(null);
     setPwVisible(true);
     if (!token) return;
     const req = ++pwReqRef.current; // guard: ignore stale responses after a quick user switch
     try {
       const res = await api.getUserPassword(token, id);
-      if (pwReqRef.current === req) setCurrentPw(res.password);
+      if (pwReqRef.current === req) setPwView({ id, password: res.password });
     } catch {
-      if (pwReqRef.current === req) setCurrentPw(null);
+      if (pwReqRef.current === req) setPwView({ id, password: null });
     }
   };
 
@@ -106,11 +108,11 @@ export default function AdminPanel() {
     }
     setHistoryUser(id);
     setHistoryLoading(true);
-    setHistoryEvents([]);
+    setHistoryData(null);
     const req = ++histReqRef.current; // guard: ignore stale responses after a quick user switch
     try {
       const res = await api.userHistory(token, id);
-      if (histReqRef.current === req) setHistoryEvents(res.events);
+      if (histReqRef.current === req) setHistoryData({ id, events: res.events });
     } catch {
       if (histReqRef.current === req) setError('Failed to load history');
     } finally {
@@ -124,7 +126,7 @@ export default function AdminPanel() {
     if (!window.confirm("Clear this user's saved command history? This cannot be undone.")) return;
     try {
       await api.clearUserHistory(token, id);
-      setHistoryEvents([]);
+      setHistoryData({ id, events: [] });
     } catch {
       setError('Failed to clear history');
     }
@@ -196,11 +198,17 @@ export default function AdminPanel() {
         onChange={e => setSearch(e.target.value)}
       />
 
-      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+      <div className="space-y-2 max-h-[36rem] overflow-y-auto pr-1">
         {filtered.length === 0 && (
           <div className="text-[10px] text-dim text-center py-2">No users match your search.</div>
         )}
-        {filtered.map(u => (
+        {filtered.map(u => {
+          // per-user view of the shared fetched data — scoped by id, so the
+          // password/history shown under this card always belongs to THIS user
+          const pwReady = pwView != null && pwView.id === u.id;
+          const pw = pwReady ? pwView.password : null;
+          const evts = historyData != null && historyData.id === u.id ? historyData.events : [];
+          return (
           <div key={u.id} className="border border-hairline p-2 rounded bg-void/30">
             <div className="flex justify-between items-start">
               <div className="min-w-0">
@@ -243,9 +251,9 @@ export default function AdminPanel() {
                 <div className="flex items-center gap-1.5 text-[10px]">
                   <span className="text-dim uppercase tracking-widest shrink-0">Current:</span>
                   <span className="font-mono text-ink min-w-0 truncate">
-                    {currentPw == null ? '—' : pwVisible ? currentPw : '••••••••'}
+                    {pwReady ? (pw == null ? '—' : pwVisible ? pw : '••••••••') : '…'}
                   </span>
-                  {currentPw != null && (
+                  {pwReady && pw != null && (
                     <button
                       className="btn px-1.5 py-0.5 text-[9px] shrink-0"
                       onClick={() => setPwVisible(v => !v)}
@@ -275,11 +283,11 @@ export default function AdminPanel() {
             {historyUser === u.id && (
               <div className="mt-2 border-t border-hairline pt-2">
                 {historyLoading && <div className="text-[10px] text-dim">Loading history...</div>}
-                {!historyLoading && historyEvents.length === 0 && (
+                {!historyLoading && evts.length === 0 && (
                   <div className="text-[10px] text-dim">No saved events for this user.</div>
                 )}
                 <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
-                  {historyEvents.map(ev => (
+                  {evts.map(ev => (
                     <div key={ev.id} className="flex gap-2 text-[10px] leading-relaxed">
                       <span className="num shrink-0 text-dim">{new Date(ev.createdAt).toLocaleTimeString()}</span>
                       <span className="num w-[58px] shrink-0 uppercase text-muted">{ev.source}</span>
@@ -287,7 +295,7 @@ export default function AdminPanel() {
                     </div>
                   ))}
                 </div>
-                {historyEvents.length > 0 && (
+                {evts.length > 0 && (
                   <button
                     className="btn btn-alarm w-full py-0.5 text-[9px] mt-1.5"
                     onClick={() => clearUserHistory(u.id)}
@@ -298,7 +306,8 @@ export default function AdminPanel() {
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </Panel>
   );
