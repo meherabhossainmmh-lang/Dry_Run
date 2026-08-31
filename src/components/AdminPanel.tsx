@@ -198,6 +198,10 @@ export default function AdminPanel() {
         onChange={e => setSearch(e.target.value)}
       />
 
+      <div className="text-[9px] uppercase tracking-widest text-dim font-bold mb-1">
+        All Users ({filtered.length})
+      </div>
+
       <div className="space-y-2 max-h-[36rem] overflow-y-auto pr-1">
         {filtered.length === 0 && (
           <div className="text-[10px] text-dim text-center py-2">No users match your search.</div>
